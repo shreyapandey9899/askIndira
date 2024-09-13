@@ -1,0 +1,131 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+pip install fuzzywuzzy[speedup]
+!pip install gradio
+
+import re
+import os
+import pandas as pd
+from collections import deque, defaultdict
+from fuzzywuzzy import process
+
+
+def load_words(file_name):
+    word_set = set()
+    with open(file_name, 'r', encoding='utf-8') as file:
+        for line in file:
+            word_set.add(line.strip().lower())
+    return word_set
+
+def load_categories(folder_path):
+    categories = defaultdict(list)
+    responses = {}
+    more_responses = {}
+    for file_name in os.listdir(folder_path):
+        if file_name.endswith('.xlsx'):
+            file_path = os.path.join(folder_path, file_name)
+            df = pd.read_excel(file_path)
+            for _, row in df.iterrows():
+                categories[row['category']].append(row['subcategory'])
+                responses[row['subcategory']] = row['response']
+                more_responses[row['subcategory']] = row.get('more', '')
+    return categories, responses, more_responses
+
+def bfs(categories, start_category):
+    visited = set()
+    queue = deque([start_category])
+    result = []
+
+    while queue:
+        category = queue.popleft()
+        if category not in visited:
+            visited.add(category)
+            result.append(category)
+            for subcategory in categories[category]:
+                if subcategory not in visited:
+                    queue.append(subcategory)
+    return result
+
+def get_best_match(query, choices, threshold=80):
+    if len(query) < 5:
+        if query in choices:
+            return query
+        return None
+    best_match, score = process.extractOne(query, choices)
+    if score >= threshold:
+        return best_match
+    return None
+
+def process_input(input_text, stop_words, categories, responses, more_responses, question_count):
+    # Convert input to lowercase
+    input_text = input_text.lower()
+
+    # Tokenize the input
+    tokens = re.findall(r'\b\w+\b', input_text)
+
+    # Process tokens
+    found_keyword = False
+    all_categories = list(categories.keys())
+    all_subcategories = [subcat for subcats in categories.values() for subcat in subcats]
+
+    for token in tokens:
+        best_category_match = get_best_match(token, all_categories)
+        best_subcategory_match = get_best_match(token, all_subcategories)
+
+        if best_category_match:
+            found_keyword = True
+            subcategories = bfs(categories, best_category_match)
+            print(f"Which subcategory of {best_category_match} are you interested in?")
+            for subcategory in subcategories:
+                print(f"- {subcategory}")
+            chosen_subcategory = input("Please enter the subcategory: ").strip().lower()
+            best_chosen_subcategory_match = get_best_match(chosen_subcategory, subcategories)
+            if best_chosen_subcategory_match and best_chosen_subcategory_match in responses:
+                question_count[best_chosen_subcategory_match] += 1
+                if question_count[best_chosen_subcategory_match] > 1 and more_responses[best_chosen_subcategory_match]:
+                    print(more_responses[best_chosen_subcategory_match])
+                else:
+                    print(responses[best_chosen_subcategory_match])
+            else:
+                print("Sorry, I don't have information on that subcategory.")
+            break
+        elif best_subcategory_match:
+            found_keyword = True
+            if best_subcategory_match in responses:
+                question_count[best_subcategory_match] += 1
+                if question_count[best_subcategory_match] > 1 and more_responses[best_subcategory_match]:
+                    print(more_responses[best_subcategory_match])
+                else:
+                    print(responses[best_subcategory_match])
+            else:
+                print("Sorry, I don't have information on that subcategory.")
+            break
+
+    if not found_keyword:
+        print("I am Sorry")
+
+def main():
+    # Load stop words and categories from files
+    stop_words = load_words('stopwords.txt')
+    folder_path = '/content/drive/MyDrive/askIndira'  # Folder containing department-related XLSX files
+    categories, responses, more_responses = load_categories(folder_path)
+
+    question_count = defaultdict(int)
+
+    print("Got a ton of questions about the college?")
+    print("No worries, I've got you covered!")
+    print("Whether it's about societies, academics, departments, or even the best place to grab a snack, just ask away.")
+    print("Let's make this college adventure a blast together! 🎉😄")
+
+    while True:
+        print()  # Add a blank line for spacing before the next input
+        input_text = input("You: ")
+        if input_text.lower() == "bye":
+            break
+        process_input(input_text, stop_words, categories, responses, more_responses, question_count)
+
+    print("Goodbye!")
+
+if __name__ == "__main__":
+    main()
