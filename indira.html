@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .chat-container {
+            width: 80%;
+            max-width: 600px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .chat-box {
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .user-message, .bot-message {
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #e1f5fe;
+            align-self: flex-end;
+        }
+
+        .bot-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+
+        .input-container {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background-color: #ffffff;
+            border-top: 1px solid #ddd;
+        }
+
+        #userInput {
+            width: 80%;
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>ASK INDIRA Chatbot</h2>
+        </div>
+        <div class="chat-box" id="chatBox">
+            <!-- Messages will appear here -->
+        </div>
+        <div class="input-container">
+            <input type="text" id="userInput" placeholder="Ask me anything!">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const inputText = document.getElementById("userInput").value;
+            const chatBox = document.getElementById("chatBox");
+
+            // Display user message
+            const userMessage = document.createElement("div");
+            userMessage.classList.add("user-message");
+            userMessage.innerText = inputText;
+            chatBox.appendChild(userMessage);
+
+            // Clear the input field
+            document.getElementById("userInput").value = "";
+
+            // Send the user message to the Flask backend
+            const response = await fetch("http://127.0.0.1:5000/ask", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ input: inputText }),
+            });
+
+            const result = await response.json();
+
+            // Display bot response
+            const botMessage = document.createElement("div");
+            botMessage.classList.add("bot-message");
+            botMessage.innerText = result.response;
+            chatBox.appendChild(botMessage);
+
+            // Scroll to the bottom of the chat
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
